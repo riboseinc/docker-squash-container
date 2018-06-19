@@ -1,0 +1,93 @@
+= The Ribose docker-squash container
+
+== Purpose
+
+https://github.com/goldmann/docker-squash[docker-squash] by @goldmann
+is a powerful tool designed to minimize space wastage and to get rid
+of unwanted build process artifacts (such as ones related to security).
+
+It differs from docker's shiny new `--squash` command that you can
+select specific layers to compress -- instead of flattening an
+entire container, allowing your container to take advantage of image
+caching.
+
+For example, if your image is based on `centos:7`, you can squash
+all layers from `centos:7` to the top, resulting in 2 layers, and
+the underlying layer is already present in the registry. This
+approach minimizes pushes and enables better caching.
+
+While it can be conveniently installed via `pip`, one might not want
+to pollute your own host with its dependencies. So we put this into
+a container.
+
+== Pulling the container
+
+This container is published at the https://hub.docker.com/r/ribose/docker-squash/[Docker Registry] as `docker.io/ribose/docker-squash` or `ribose/docker-squash`,
+and can be pulled with the following command:
+
+[source,sh]
+----
+docker pull ribose/docker-squash
+----
+
+
+== Usage
+
+The `Makefile` in this repository already contains an example
+of "`squashing`" the resulting `docker-squash` container
+(sounds recursive doesn't it).
+
+It can be used just like the native `docker-squash` command,
+as seen below:
+
+[source,sh]
+----
+docker run --rm \
+  -v $(which docker):/usr/bin/docker \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -v /docker_tmp ribose/docker-squash \
+  -f ${SQUASHED_IMAGE_FROM} \
+  -t ${SQUASHED_IMAGE_TO} \
+  ${SOURCE_IMAGE}
+----
+
+Note that this command bind-mounts the host `docker`
+executable into the `docker-squash` container.
+
+There are only three variables.
+
+`SQUASHED_IMAGE_FROM`:: the image layer to begin squashing
+
+`SQUASHED_IMAGE_TO`:: the image layer to squash until
+
+`SOURCE_IMAGE`:: the image to squash
+
+
+== Building the container yourself
+
+For those concerned about security you might not want to use
+our container.
+This `Makefile` allows for such a case (as you can imagine).
+
+All you have to set is a couple environment variables.
+
+For example, if you use AWS' ECR, you can set this:
+
+[source,sh]
+----
+export NS_REMOTE=${account-id}.dkr.ecr.${region}.amazonaws.com/${account-name}
+export DOCKER_LOGIN_CMD='aws ecr get-login --no-include-email \
+  --region=${region} --registry-ids=${ecr-registry-id}'
+----
+
+Then run this:
+
+[source,sh]
+----
+make all postall
+----
+
+The make target `all` is used to build the container,
+and `postall` is used to push the container to the chosen
+registry.
+
